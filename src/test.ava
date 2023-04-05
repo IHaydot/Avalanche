@@ -1,4 +1,13 @@
-add #gur0 label2(0)
+LoopTimes;
+500000!
+set #gur1 LoopTimes
+zero #gur2
+call loop
+stop
 
-label2>
-1000!
+loop:
+    sub #gur1 $1
+    cpy #rr0 #gur1
+    eq #gur1 #gur2
+    rcs
+    jmp loop

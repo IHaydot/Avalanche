@@ -19,6 +19,7 @@ pub enum VMInstructions{
     RCS = 13, //0A
     RCNS = 14, //0A
     ADD1 = 15, //2A ADD with number
+    SUB1 = 16, //2A SUB with number
 
     NUL = 0xde
 }
@@ -42,6 +43,7 @@ impl From<u8> for VMInstructions{
             13 => Self::RCS,
             14 => Self::RCNS,
             15 => Self::ADD1,
+            16 => Self::SUB1,
 
             _ => Self::NUL
         }
@@ -67,6 +69,7 @@ impl From<i64> for VMInstructions{
             13 => Self::RCS,
             14 => Self::RCNS,
             15 => Self::ADD1,
+            16 => Self::SUB1,
 
             _ => Self::NUL
         }

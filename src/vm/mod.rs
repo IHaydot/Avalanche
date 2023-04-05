@@ -306,12 +306,27 @@ impl VMInstance{
                     self.next_8_bits();
                     self.regs.RR0 = self.regs.read_GUR(reg1).unwrap() - self.regs.read_GUR(reg2).unwrap();
                     if self.debug == true{
-                        println!("Looking at SUB at position {} with reg states:\n{:?}\nReg1:{},Reg2:{},Result:{}",
+                        println!("Looking at SUB at position {} with reg states:\n{:?}\nReg1:{},Reg2:{}",
                             	    self.CP.clone(),
                                     self.clone().regs(),
                                     reg1,
-                                    reg2,
-                                    self.regs.clone().read_RR(6).unwrap()
+                                    reg2
+                                );
+                    }
+                    self.CP += 1;
+                }
+
+                VMInstructions::SUB1 => {
+                    let reg = self.next_8_bits();
+                    let num = self.next_8_bits();
+                    self.next_8_bits();
+                    self.regs.RR0 = self.regs.read_GUR(reg).unwrap() - num;
+                    if self.debug == true{
+                        println!("Looking at SUB at position {} with reg states:\n{:?}\nReg:{},Num:{}",
+                            	    self.CP.clone(),
+                                    self.clone().regs(),
+                                    reg,
+                                    num,
                                 );
                     }
                     self.CP += 1;

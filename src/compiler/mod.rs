@@ -34,7 +34,6 @@ pub struct CompileErrorsList{
 enum LabelType{
     Positional,
     Storage,
-    Functional
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -91,17 +90,9 @@ pub fn compile(code: String, name: String) -> Result<Vec<i64>, (CompileErrors, C
             let mut s = s.clone();
             s.pop();
             println!("Found storage label {s}");
-            labels.push(Label { name: s, pos: ret_len as u64 - 1, ltype: LabelType::Storage});
-        }else if s.chars().last().unwrap() == '>'{
-            let mut s = s.clone();
-            s.pop();
-            println!("Found functional label {s}");
-            labels.push(Label { name: s, pos: ret_len as u64 - 1, ltype: LabelType::Functional});
+            labels.push(Label { name: s, pos: ret_len as u64, ltype: LabelType::Storage});
         }
-
     }
-
-    ret_len = 0;
 
     for (i, s) in raw.clone().iter().enumerate(){
          //For closure
@@ -126,7 +117,12 @@ pub fn compile(code: String, name: String) -> Result<Vec<i64>, (CompileErrors, C
                     if raw.clone()[i + 2].chars().next().unwrap() == '#'{
                         inner_ret.push(01);
                         inner_stateQ.push(CompilerStates::Reg);
-                    }else{
+                    }
+                    else if raw.clone()[i + 2].chars().next().unwrap() == '$'{
+                        inner_ret.push(15);
+                        inner_stateQ.push(CompilerStates::Num);
+                    }
+                    else{
                         inner_ret.push(15);
                         //return Err((CompileErrors::BAD_SYNTAX, CompileErrorsList{bad_syntax_opcode: Some(raw.clone().index(i + 2).to_string()), ..Default::default()}))
                         inner_stateQ.push(CompilerStates::ContainerLabel);
@@ -232,15 +228,19 @@ pub fn compile(code: String, name: String) -> Result<Vec<i64>, (CompileErrors, C
                 }
 
                 "sub" => {
-                    inner_ret.push(11);
                     if raw.clone()[i + 1].chars().next().unwrap() == '#'{
                         inner_stateQ.push(CompilerStates::Reg);
                     }else{
                         return Err((CompileErrors::BAD_SYNTAX, CompileErrorsList{bad_syntax_opcode: Some(raw.clone().index(i + 1).to_string()), ..Default::default()}))
                     }
                     if raw.clone()[i + 2].chars().next().unwrap() == '#'{
+                        inner_ret.push(11);
                         inner_stateQ.push(CompilerStates::Reg);
+                    }else if raw.clone()[i + 2].chars().next().unwrap() == '$'{
+                        inner_ret.push(16);
+                        inner_stateQ.push(CompilerStates::Num);
                     }else{
+                        inner_ret.push(16);
                         //return Err((CompileErrors::BAD_SYNTAX, CompileErrorsList{bad_syntax_opcode: Some(raw.clone().index(i + 2).to_string()), ..Default::default()}))
                         inner_stateQ.push(CompilerStates::ContainerLabel);
                     }
@@ -395,16 +395,22 @@ pub fn compile(code: String, name: String) -> Result<Vec<i64>, (CompileErrors, C
             CompilerStates::ContainerLabel =>{
                 let label = match labels
                         .iter()
-                        .find(|&l| &l.clone().name == s && (&l.clone().ltype == &LabelType::Storage || &l.clone().ltype == &LabelType::Functional)){
+                        .find(|&l| (&l.clone().name == s || l.clone().name.to_string() == {
+                            let mut s = s.clone();
+                            s.pop();
+                            s.pop();
+                            s.pop();
+                            s
+                        }) && (&l.clone().ltype == &LabelType::Storage)){
                                 Some(l) => l,
                                 None => return Err((CompileErrors::UNKNOWN_LABEL, CompileErrorsList{unknown_label_name: Some(s.to_string()), ..Default::default()}))
                         };
                 let &pos = &label.pos;
                 match label.ltype{
                     LabelType::Storage => {
-                        ret.push(match raw.clone()[(pos + 1) as usize]
+                        ret.push(match raw.clone()[(ret_len + 1) as usize]
                             .chars()
-                            .filter(|&c| !c.is_ascii_punctuation())
+                            .filter(|&c| !c.is_ascii_punctuation() || c != '!')
                             .collect::<String>()
                             .parse::<i64>(){
                             Ok(i) => i,
@@ -416,32 +422,6 @@ pub fn compile(code: String, name: String) -> Result<Vec<i64>, (CompileErrors, C
                                 }))
                             }
                         });
-                    }
-
-                    LabelType::Functional => {
-                        let s = s.chars()
-                            .filter(|&c| !c.is_ascii_punctuation())
-                            .collect::<String>();
-                        let last_c_index = s.chars().collect::<Vec<char>>().iter().len();
-                        if s.chars().last().unwrap() != ')' && s.chars().collect::<Vec<char>>().index(last_c_index - 2) != &char::from('('){
-                            return Err((CompileErrors::BAD_SYNTAX, CompileErrorsList{bad_syntax_opcode: Some(raw.clone().index(i + 1).to_string()), ..Default::default()}))
-                        } 
-
-                        let len = s.chars()
-                                        .collect::<Vec<char>>()
-                                        .index(last_c_index - 1)
-                                        .to_digit(10)
-                                        .unwrap() as u64;
-                        let num = match raw.clone().index((pos + len) as usize)
-                                    .to_string()
-                                    .parse::<i64>(){
-                                        Ok(i) => i,
-                                        Err(e) => return Err((CompileErrors::PARSE_FAILED, CompileErrorsList{
-                                            parse_int_error: Some(e),
-                                            ..Default::default()
-                                        }))
-                                    };
-                        ret.push(num);
                     }
 
                     _ => panic!("Impossible panic hit!") 
@@ -508,7 +488,7 @@ where P: AsRef<Path>
     if let Err(e) = file.read_to_string(&mut contents){
         return Err(e)
     }
-
+ 
     let ret = contents
                     .split(" ")
                     .map(|s| s.to_string())
