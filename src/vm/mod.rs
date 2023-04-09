@@ -5,7 +5,12 @@ pub mod inst;
 use std::{io::Write, borrow::BorrowMut};
 
 use inst::VMInstructions;
-use regs::VMRegisters;
+use regs::{
+    VMRegisters,
+    VMRegister,
+    VMRegisterE,
+    VMRegisterType
+};
 use states::VMStates;
 
 
@@ -15,7 +20,8 @@ pub struct VMInstance{
     CP: i64,
     program: Option<Vec<i64>>,
     state: VMStates,
-    debug: bool
+    debug: bool,
+    stack: Vec<VMRegister>
 }
 
 impl Default for VMInstance{
@@ -26,6 +32,7 @@ impl Default for VMInstance{
             program: None,
             state: VMStates::NO_PROGRAM,
             debug: false,
+            stack: vec![]
         }
     }
 }
@@ -87,6 +94,33 @@ impl VMInstance{
             }
 
             let instr = VMInstructions::from(self.program.clone().unwrap()[self.CP as usize]);
+
+            let pull_handler = |typ: VMRegisterType, vmreg: VMRegister, reg: i64, regs: VMRegisters| -> VMRegisters{
+                let mut ret = regs;
+                match typ{
+                    VMRegisterType::Normal => {
+                        ret.set_normal_register(reg, vmreg.value.unwrap()).unwrap();
+                    }
+
+                    VMRegisterType::SR0 => {
+                        if reg == 22{
+                            ret.SR0 = vmreg.sr0_val.unwrap();
+                        } else if reg == 25{
+                            ret.SR3 = vmreg.sr0_val.unwrap();
+                        }
+                    }
+
+                    VMRegisterType::SR1 => {
+                        if reg == 23 {
+                            ret.SR1 = vmreg.sr1_val.as_ref().unwrap().to_vec();
+                        } else if reg == 26{
+                            ret.SR4 = vmreg.sr1_val.as_ref().unwrap().to_vec();
+                        }
+                    }
+                }
+
+                ret
+            };
 
             match instr{
                 VMInstructions::NOP => {
@@ -386,6 +420,85 @@ impl VMInstance{
                                     self.regs.sr0_state()
                                 );
                     }
+                }
+
+                VMInstructions::PUSH => {
+                    let reg = self.next_8_bits();
+                    self.next_16_bits();
+
+                    self.stack.push(VMRegister::new(VMRegisterE::from(reg), self.regs.clone()).unwrap());
+                    self.CP += 1;
+                    println!("Looking at PUSH at position {} with reg states:\n{:?}\nReg:{}Stack:{:?}",
+                            	self.CP.clone(),
+                                self.clone().regs(),
+                                reg,
+                                self.stack
+                            );
+                }
+
+                VMInstructions::PULL => {
+                    let reg = self.next_8_bits();
+                    self.next_16_bits();
+
+                    let vmreg = self.stack.iter()
+                                .find(|&r| r.register == VMRegisterE::from(reg))
+                                .unwrap();
+
+                    let typ = vmreg.typ;
+
+                    let regs = pull_handler(typ, vmreg.clone(), reg, self.clone().regs());
+                    self.regs = regs;
+
+                    self.CP += 1;
+                    println!("Looking at PULL at position {} with reg states:\n{:?}\nReg:{}Stack:{:?}",
+                            	self.CP.clone(),
+                                self.clone().regs(),
+                                reg,
+                                self.stack
+                            );
+                }
+
+                VMInstructions::PULLAL => {
+                    self.next_8_bits();
+                    self.next_16_bits();
+
+                    for i in (0..VMRegisterE::len())
+                    {   
+                        let reg = i as i64;
+                        let vmreg = self.stack.iter()
+                                .find(|&r| r.register == VMRegisterE::from(reg))
+                                .unwrap();
+                        let typ = vmreg.typ;
+                        let regs = pull_handler(typ, vmreg.clone(), reg, self.clone().regs());
+                        self.regs = regs;
+                    }
+
+                    self.CP += 1;
+                    println!("Looking at PULLAL at position {} with reg states:\n{:?}\nStack:{:?}",
+                            	self.CP.clone(),
+                                self.clone().regs(),
+                                self.stack
+                    );
+                }
+                
+                VMInstructions::PUSHAL => {
+                    self.next_8_bits();
+                    self.next_16_bits();
+
+                    //self.stack.push(VMRegister::new(VMRegisterE::from(reg), self.regs.clone()).unwrap());
+
+                    for i in (0..VMRegisterE::len())
+                    {   
+                        let i = i as i64;
+                        self.stack.push(VMRegister::new(VMRegisterE::from(i), self.regs.clone()).unwrap());
+                    }
+
+                    self.CP += 1;
+                    println!("Looking at PUSHAL at position {} with reg states:\n{:?}\nStack:{:?}",
+                            	self.CP.clone(),
+                                self.clone().regs(),
+                                self.stack
+                            );
                 }
 
                 _ => {

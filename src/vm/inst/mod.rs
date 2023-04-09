@@ -20,6 +20,10 @@ pub enum VMInstructions{
     RCNS = 14, //0A
     ADD1 = 15, //2A ADD with number
     SUB1 = 16, //2A SUB with number
+    PUSH = 17, //1A
+    PULL = 18, //A1
+    PUSHAL = 19, //0A
+    PULLAL = 20, //0A
 
     NUL = 0xde
 }
@@ -44,6 +48,10 @@ impl From<u8> for VMInstructions{
             14 => Self::RCNS,
             15 => Self::ADD1,
             16 => Self::SUB1,
+            17 => Self::PUSH,
+            18 => Self::PULL,
+            19 => Self::PUSHAL,
+            20 => Self::PULLAL,
 
             _ => Self::NUL
         }
@@ -70,6 +78,10 @@ impl From<i64> for VMInstructions{
             14 => Self::RCNS,
             15 => Self::ADD1,
             16 => Self::SUB1,
+            17 => Self::PUSH,
+            18 => Self::PULL,
+            19 => Self::PUSHAL,
+            20 => Self::PULLAL,
 
             _ => Self::NUL
         }

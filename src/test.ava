@@ -1,13 +1,9 @@
-LoopTimes;
-500000!
-set #gur1 LoopTimes
-zero #gur2
-call loop
+set #gur0 value
+push #gur0
+zero #gur0
+pull #gur0
 stop
 
-loop:
-    sub #gur1 $1
-    cpy #rr0 #gur1
-    eq #gur1 #gur2
-    rcs
-    jmp loop
+
+value;
+byte 5000

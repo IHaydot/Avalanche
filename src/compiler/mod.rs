@@ -1,6 +1,9 @@
 
 use core::num::ParseIntError;
 
+pub mod keywords;
+use keywords::CompilerKeywords;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(C)]
 enum CompilerStates{
@@ -71,13 +74,14 @@ pub fn compile(code: String, name: String) -> Result<Vec<i64>, (CompileErrors, C
     let mut stateQ: Vec<CompilerStates> = vec![];
     let mut ret: Vec<i64> = vec!{};
     let mut ret_len = 0;
+    let mut removables: Vec<usize> = vec![]; 
 
     let mut labels: Vec<Label> = vec![]; 
 
     for s in raw.clone().iter(){
         match &s[..]{
             "nop" | "ret" | "add" | "set" | "cpy" | "eq" | "jmp" | "jcs" | "jcns" | "call" | "stop" 
-            | "sub" | "zero" | "rcs" | "rcns" => {ret_len += 4;},
+            | "sub" | "zero" | "rcs" | "rcns" | "push" | "pull" | "pushal" | "pullal" => {ret_len += 4;},
 
             _ => ()
         }
@@ -98,7 +102,7 @@ pub fn compile(code: String, name: String) -> Result<Vec<i64>, (CompileErrors, C
          //For closure
         let stateQi = stateQ.clone();
         ret_len = ret.iter().len();
-
+        
         let mut command_handler = |s: String| -> Result<(Vec<i64>, Vec<CompilerStates>), (CompileErrors, CompileErrorsList)>{
             let mut inner_ret = vec![];
             let mut inner_stateQ = stateQi.clone();
@@ -268,15 +272,39 @@ pub fn compile(code: String, name: String) -> Result<Vec<i64>, (CompileErrors, C
                     for _ in 0..=2{inner_ret.push(0);}
                 }
 
+                "push" => {
+                    inner_ret.push(17);
+                    inner_stateQ.push(CompilerStates::Reg);
+                    inner_stateQ.push(CompilerStates::DSkip);
+                }
+
+                "pull" => {
+                    inner_ret.push(18);
+                    inner_stateQ.push(CompilerStates::Reg);
+                    inner_stateQ.push(CompilerStates::DSkip);
+                }
+
+                "pushal" => {
+                    inner_ret.push(19);
+                    for _ in 0..=2{inner_ret.push(0);}
+                }
+
+                "pullal" => {
+                    inner_ret.push(20);
+                    for _ in 0..=2{inner_ret.push(0);}
+                }
+
+                //Keywords
+                "byte" => {
+                    inner_stateQ.push(CompilerStates::Num);
+                    removables.push(ret_len);
+                }
+
                 _ => {
                     if s.chars().last().unwrap() != ':' &&
-                       s.chars().last().unwrap() != ';' &&
-                       s.chars().last().unwrap() != '>' &&
-                       s.chars().last().unwrap() != ',' &&
-                       s.chars().last().unwrap() != '!' 
+                       s.chars().last().unwrap() != ';' 
                     {
-                        inner_ret.push(0xde);
-                        println!("Unrecognized opcode! {s}");
+                        inner_stateQ.push(CompilerStates::Num);
                     }
                 }
             }
@@ -395,27 +423,21 @@ pub fn compile(code: String, name: String) -> Result<Vec<i64>, (CompileErrors, C
             CompilerStates::ContainerLabel =>{
                 let label = match labels
                         .iter()
-                        .find(|&l| (&l.clone().name == s || l.clone().name.to_string() == {
-                            let mut s = s.clone();
-                            s.pop();
-                            s.pop();
-                            s.pop();
-                            s
-                        }) && (&l.clone().ltype == &LabelType::Storage)){
+                        .find(|&l| (&l.clone().name == s) && (&l.clone().ltype == &LabelType::Storage)){
                                 Some(l) => l,
                                 None => return Err((CompileErrors::UNKNOWN_LABEL, CompileErrorsList{unknown_label_name: Some(s.to_string()), ..Default::default()}))
                         };
                 let &pos = &label.pos;
                 match label.ltype{
                     LabelType::Storage => {
-                        ret.push(match raw.clone()[(ret_len + 1) as usize]
+                        ret.push(match raw.clone()[(pos + 2) as usize]
                             .chars()
                             .filter(|&c| !c.is_ascii_punctuation() || c != '!')
                             .collect::<String>()
                             .parse::<i64>(){
                             Ok(i) => i,
                             Err(e) => {
-                                println!("Failed to parse num {}", raw.clone()[(pos + 1) as usize]);
+                                println!("Failed to parse num {}", raw.clone()[(pos + 2) as usize]);
                                 return Err((CompileErrors::PARSE_FAILED, CompileErrorsList{
                                 parse_int_error: Some(e),
                                 ..Default::default()
@@ -444,6 +466,10 @@ pub fn compile(code: String, name: String) -> Result<Vec<i64>, (CompileErrors, C
         }else{
             state = CompilerStates::Command;
         }
+    }
+
+    'finishing: for i in removables{
+        ret.remove(i);
     }
 
     println!("{:?}", raw);
