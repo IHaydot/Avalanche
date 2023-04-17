@@ -164,7 +164,7 @@ impl VMInstance{
                                     self.clone().regs(),
                                     reg,
                                     num,
-                                    self.regs.clone().read_RR(6).unwrap()
+                                    self.regs.clone().read_RR(16).unwrap()
                                 );
                     }
                     self.CP += 1;
@@ -228,13 +228,13 @@ impl VMInstance{
                     let reg2 = self.next_8_bits();
                     self.next_8_bits();
                     
-                    let num1 = if reg1 <= 5{
+                    let num1 = if reg1 <= 15{
                         self.regs.clone().read_GUR(reg1).unwrap()
                     }else{
                         self.regs.clone().read_RR(reg1).unwrap()
                     };
 
-                    let num2 = if reg2 <= 5{
+                    let num2 = if reg2 <= 15{
                         self.regs.clone().read_GUR(reg2).unwrap()
                     }else{
                         self.regs.clone().read_RR(reg2).unwrap()
@@ -470,7 +470,6 @@ impl VMInstance{
                                 );
                     }
                 }
-
                 VMInstructions::PULLAL => {
                     self.next_8_bits();
                     self.next_16_bits();
@@ -489,7 +488,6 @@ impl VMInstance{
                         self.regs = regs;
                         self.stack.remove(index);
                     }
-
                     self.CP += 1;
                     if self.debug{
                         println!("Looking at PULLAL at position {} with reg states:\n{:?}\nStack:{:?}",
@@ -499,7 +497,6 @@ impl VMInstance{
                         );
                     }
                 }
-                
                 VMInstructions::PUSHAL => {
                     self.next_8_bits();
                     self.next_16_bits();
@@ -543,6 +540,30 @@ impl VMInstance{
                     }
 
                     self.CP += 1;
+                }
+
+                VMInstructions::EQ1 => {
+                    let reg = self.next_8_bits();
+                    let num = self.next_8_bits();
+                    self.CP += 2;
+
+                    let num1 = if reg <= 15{
+                        self.regs.clone().read_GUR(reg).unwrap()
+                    }else{
+                        self.regs.clone().read_RR(reg).unwrap()
+                    };
+
+                    self.regs.set_sr0(if num1 == num{true} else{false});
+
+                    if self.debug == true{
+                        println!("Looking at EQ at position {} with reg states:\n{:?}\nReg1:{},Num:{},Result:{}",
+                            self.CP.clone(),
+                            self.clone().regs(),
+                            reg,
+                            num,
+                            self.regs.clone().sr0_state()
+                        );
+                    }
                 }
 
                 _ => {

@@ -89,7 +89,7 @@ pub fn compile(code: String, name: String) -> Result<Vec<i64>, (CompileErrors, C
             let mut s = s.clone();
             s.pop();
             println!("Found positional label {s}");
-            labels.push(Label { name: s, pos: ret_len as u64 - 1, ltype: LabelType::Positional});
+            labels.push(Label { name: s, pos: if ret_len > 0{ret_len as u64 - 1}else{ret_len as u64}, ltype: LabelType::Positional});
         }else if s.chars().last().unwrap() == ';'{
             let mut s = s.clone();
             s.pop();
@@ -176,16 +176,19 @@ pub fn compile(code: String, name: String) -> Result<Vec<i64>, (CompileErrors, C
                 }
 
                 "eq" => {
-                    inner_ret.push(06);
                     if raw.clone()[i + 1].chars().next().unwrap() == '#'{
                         inner_stateQ.push(CompilerStates::Reg);
                     }else{
                         return Err((CompileErrors::BAD_SYNTAX, CompileErrorsList{bad_syntax_opcode: Some(raw.clone().index(i + 1).to_string()), ..Default::default()}))
                     }
                     if raw.clone()[i + 2].chars().next().unwrap() == '#'{
+                        inner_ret.push(6);
                         inner_stateQ.push(CompilerStates::Reg);
-                    }else{
+                    }else if raw.clone()[i + 2].chars().next().unwrap() == '$'{
                         //return Err((CompileErrors::BAD_SYNTAX, CompileErrorsList{bad_syntax_opcode: Some(raw.clone().index(i + 2).to_string()), ..Default::default()}))
+                        inner_ret.push(22);
+                        inner_stateQ.push(CompilerStates::Num);
+                    }else{
                         inner_stateQ.push(CompilerStates::ContainerLabel);
                     }
                     inner_stateQ.push(CompilerStates::Skip);

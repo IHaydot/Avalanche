@@ -52,7 +52,7 @@ fn main() {
     };
 
     instance.set_program(program);
-    match instance.run(){
+    match instance.debug(){
         Ok(()) => (),
         Err(e) => panic!("Virtual machine execution failure: {:?}", e)
     }

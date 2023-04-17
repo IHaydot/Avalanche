@@ -1,6 +1,11 @@
-set #gur0 $500
-cpy #gur0 #gur1
-add #gur0 #gur1
-pushal
-zeal
-pullal
+Target;
+byte 500000
+
+loop:
+    add #gur0 $1
+    eq #rr0 Target
+    jcs end
+    cpy #rr0 #gur0
+    jmp loop
+end:
+    stop
