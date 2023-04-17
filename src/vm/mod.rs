@@ -21,7 +21,7 @@ pub struct VMInstance{
     program: Option<Vec<i64>>,
     state: VMStates,
     debug: bool,
-    stack: Vec<VMRegister>
+    pub(crate) stack: Vec<VMRegister>
 }
 
 impl Default for VMInstance{
@@ -428,12 +428,14 @@ impl VMInstance{
 
                     self.stack.push(VMRegister::new(VMRegisterE::from(reg), self.regs.clone()).unwrap());
                     self.CP += 1;
-                    println!("Looking at PUSH at position {} with reg states:\n{:?}\nReg:{}Stack:{:?}",
-                            	self.CP.clone(),
-                                self.clone().regs(),
-                                reg,
-                                self.stack
-                            );
+                    if self.debug == true{
+                        println!("Looking at PUSH at position {} with reg states:\n{:?}\nReg:{}Stack:{:?}",
+                                    self.CP.clone(),
+                                    self.clone().regs(),
+                                    reg,
+                                    self.stack
+                                );
+                    }
                 }
 
                 VMInstructions::PULL => {
@@ -441,21 +443,32 @@ impl VMInstance{
                     self.next_16_bits();
 
                     let vmreg = self.stack.iter()
-                                .find(|&r| r.register == VMRegisterE::from(reg))
+                                .find(|&r| {
+                                    r.register == VMRegisterE::from(reg)
+                                })
                                 .unwrap();
+
+                    let index = self.stack.iter()
+                                .position(|r| r == vmreg)
+                                .unwrap();
+                                
 
                     let typ = vmreg.typ;
 
                     let regs = pull_handler(typ, vmreg.clone(), reg, self.clone().regs());
                     self.regs = regs;
 
+                    self.stack.remove(index);
+
                     self.CP += 1;
-                    println!("Looking at PULL at position {} with reg states:\n{:?}\nReg:{}Stack:{:?}",
-                            	self.CP.clone(),
-                                self.clone().regs(),
-                                reg,
-                                self.stack
-                            );
+                    if self.debug == true{
+                        println!("Looking at PULL at position {} with reg states:\n{:?}\nReg:{}Stack:{:?}",
+                                    self.CP.clone(),
+                                    self.clone().regs(),
+                                    reg,
+                                    self.stack
+                                );
+                    }
                 }
 
                 VMInstructions::PULLAL => {
@@ -468,17 +481,23 @@ impl VMInstance{
                         let vmreg = self.stack.iter()
                                 .find(|&r| r.register == VMRegisterE::from(reg))
                                 .unwrap();
+                        let index = self.stack.iter()
+                            .position(|r| r == vmreg)
+                            .unwrap();
                         let typ = vmreg.typ;
                         let regs = pull_handler(typ, vmreg.clone(), reg, self.clone().regs());
                         self.regs = regs;
+                        self.stack.remove(index);
                     }
 
                     self.CP += 1;
-                    println!("Looking at PULLAL at position {} with reg states:\n{:?}\nStack:{:?}",
-                            	self.CP.clone(),
-                                self.clone().regs(),
-                                self.stack
-                    );
+                    if self.debug{
+                        println!("Looking at PULLAL at position {} with reg states:\n{:?}\nStack:{:?}",
+                                    self.CP.clone(),
+                                    self.clone().regs(),
+                                    self.stack
+                        );
+                    }
                 }
                 
                 VMInstructions::PUSHAL => {
@@ -494,11 +513,36 @@ impl VMInstance{
                     }
 
                     self.CP += 1;
-                    println!("Looking at PUSHAL at position {} with reg states:\n{:?}\nStack:{:?}",
-                            	self.CP.clone(),
-                                self.clone().regs(),
-                                self.stack
-                            );
+                    if self.debug == true{
+                        println!("Looking at PUSHAL at position {} with reg states:\n{:?}\nStack:{:?}",
+                                    self.CP.clone(),
+                                    self.clone().regs(),
+                                    self.stack
+                                );
+                    }
+                }
+
+                VMInstructions::ZEAL => {
+                    self.next_8_bits();
+                    self.next_16_bits();
+
+                    for i in (0..VMRegisterE::len()){
+                        let i = i as i64;
+                        if i <= 15{
+                            self.regs.set_GUR(i, 0);
+                        }else if i <= 21{
+                            self.regs.set_RR(i, 0);
+                        }
+                    }
+
+                    if self.debug == true{
+                        println!("Looking at ZEAL at position {} with reg states:\n{:?}\n",
+                                    self.CP.clone(),
+                                    self.clone().regs(),
+                                );
+                    }
+
+                    self.CP += 1;
                 }
 
                 _ => {

@@ -81,7 +81,7 @@ pub fn compile(code: String, name: String) -> Result<Vec<i64>, (CompileErrors, C
     for s in raw.clone().iter(){
         match &s[..]{
             "nop" | "ret" | "add" | "set" | "cpy" | "eq" | "jmp" | "jcs" | "jcns" | "call" | "stop" 
-            | "sub" | "zero" | "rcs" | "rcns" | "push" | "pull" | "pushal" | "pullal" => {ret_len += 4;},
+            | "sub" | "zero" | "rcs" | "rcns" | "push" | "pull" | "pushal" | "pullal" | "zeal" => {ret_len += 4;},
 
             _ => ()
         }
@@ -291,6 +291,11 @@ pub fn compile(code: String, name: String) -> Result<Vec<i64>, (CompileErrors, C
 
                 "pullal" => {
                     inner_ret.push(20);
+                    for _ in 0..=2{inner_ret.push(0);}
+                }
+
+                "zeal" => {
+                    inner_ret.push(21);
                     for _ in 0..=2{inner_ret.push(0);}
                 }
 

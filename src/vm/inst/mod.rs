@@ -24,6 +24,7 @@ pub enum VMInstructions{
     PULL = 18, //A1
     PUSHAL = 19, //0A
     PULLAL = 20, //0A
+    ZEAL = 21, //0A
 
     NUL = 0xde
 }
@@ -52,6 +53,7 @@ impl From<u8> for VMInstructions{
             18 => Self::PULL,
             19 => Self::PUSHAL,
             20 => Self::PULLAL,
+            21 => Self::ZEAL,
 
             _ => Self::NUL
         }
@@ -82,6 +84,7 @@ impl From<i64> for VMInstructions{
             18 => Self::PULL,
             19 => Self::PUSHAL,
             20 => Self::PULLAL,
+            21 => Self::ZEAL,
 
             _ => Self::NUL
         }

@@ -1,9 +1,6 @@
-set #gur0 value
-push #gur0
-zero #gur0
-pull #gur0
-stop
-
-
-value;
-byte 5000
+set #gur0 $500
+cpy #gur0 #gur1
+add #gur0 #gur1
+pushal
+zeal
+pullal
